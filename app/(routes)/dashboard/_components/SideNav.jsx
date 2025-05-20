@@ -31,11 +31,15 @@ function SideNav() {
                   <button 
                   
                   className={`
-                    mx-auto hover:bg-[#787785] w-full h-20 items-center flex gap-2 justify-center hover:cursor-pointer
-                    ${path==link.path&&'bg-[#787785]'}
+                    group mx-auto  hover:bg-[#68658d] w-full h-20 items-center flex gap-2 justify-center hover:cursor-pointer transition-colors duration-300
+                    ${path==link.path&&'bg-[#68658d] text-white'}
                   `}>
-                      <link.image color="#D9D9D9"/>
-                      <h1 className='text-white'>{link.name}</h1>
+                      <link.image className={`
+                        w-6 h-6
+                        ${path === link.path ? 'text-white' : 'text-[#4d4d4d]'}
+                        group-hover:text-white
+                      `}/>
+                      <h1 className={`text-[#95969B] ${path==link.path&&' text-white '} group-hover:text-white`}>{link.name}</h1>
                   </button>
                 </Link>
                 ))}
