@@ -22,7 +22,6 @@ export const users = pgTable("users", {
 // 2) Items catalog
 export const items = pgTable("items", {
   id:         serial("id").primaryKey(),
-  user_id:    text("user_id").notNull().references(() => users.id),
   sku:        varchar("sku", { length: 50 }).unique().notNull(),
   name:       varchar("name", { length: 150 }).notNull(),
   cost_price: numeric("cost_price", { precision: 10, scale: 2 }).notNull(),
