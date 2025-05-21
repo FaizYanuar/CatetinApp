@@ -1,8 +1,11 @@
+
+require("dotenv").config();
 export default {
-  schema: "./utils/schema.jsx",
-  out: "./drizzle/migrations",
-  driver: "pg",
+  schema: "./utils/schema.ts",
+  out: "./drizzle",
+  dialect: "postgresql",
   dbCredentials: {
-    connectionString: process.env.DATABASE_URL,
+    url: process.env.NEXT_PUBLIC_DATABASE_URL,
   },
 };
+

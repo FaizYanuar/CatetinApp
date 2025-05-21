@@ -8,8 +8,9 @@ import {
   timestamp,
   date,
   numeric,
-  sql,
 } from "drizzle-orm/pg-core";
+
+import { sql } from "drizzle-orm";
 
 // 1) Clerk-backed users
 export const users = pgTable("users", {
