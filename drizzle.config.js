@@ -1,5 +1,5 @@
 export default {
-  schema: "./schema.ts",
+  schema: "./utils/schema.jsx",
   out: "./drizzle/migrations",
   driver: "pg",
   dbCredentials: {
