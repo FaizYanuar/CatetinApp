@@ -27,6 +27,7 @@ export const items = pgTable("items", {
   cost_price: numeric("cost_price", { precision: 10, scale: 2 }).notNull(),
   sale_price: numeric("sale_price", { precision: 10, scale: 2 }).notNull(),
   created_at: timestamp("created_at").notNull().default(sql`now()`),
+  user_id:    text("user_id").references(() => users.id),
 });
 
 // 3) Transactions
