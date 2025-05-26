@@ -1,8 +1,8 @@
 import { db } from '@/utils/dbConfig';
 import { items } from '@/utils/schema';
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import { getAuth } from '@clerk/nextjs/server';
+import { eq, isNull, or } from 'drizzle-orm';
 
 export async function GET(req) {
   const { userId } = getAuth(req);
@@ -11,7 +11,13 @@ export async function GET(req) {
   }
 
   try {
-    const allItems = await db.select().from(items);
+    const allItems = await db
+      .select()
+      .from(items)
+      .where(
+        or(eq(items.user_id, userId), isNull(items.user_id))
+      );
+
     return NextResponse.json(allItems);
   } catch (err) {
     console.error('API error:', err);
