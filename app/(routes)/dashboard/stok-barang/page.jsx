@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState } from "react";
+import AddBarang from '@/app/(routes)/dashboard/stok-barang/_components/addBarangForm';
 
 export default function Stok() {
   const [items, setItems] = useState([]);
@@ -25,6 +26,9 @@ export default function Stok() {
       minimumFractionDigits: 0,
     }).format(value);
 
+  const [showModal, setShowModal] = useState(false);
+
+
   return (
     <div className="bg-[#DEDFEC] h-screen">
       <div className="p-5">
@@ -34,7 +38,7 @@ export default function Stok() {
       </div>
 
       <div className="px-5 mt-5">
-        <button className="bg-blue-300 px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-950 hover:text-white transition-colors duration-250">
+        <button onClick={() => setShowModal(true)} className="bg-blue-300 px-4 py-2 rounded hover:cursor-pointer hover:bg-blue-950 hover:text-white transition-colors duration-250">
           Tambah Barang
         </button>
 
@@ -83,7 +87,7 @@ export default function Stok() {
                     <td className="px-4 py-2 hidden md:table-cell">
                       {formatIDR(item.sale_price)}
                     </td>
-                    <td className="px-4 py-2">{item.current_stock}</td>
+                    <td className="px-4 py-2">{item.current_stock ?? 0}</td>
                     <td className="px-4 py-2">
                       {/* Replace this with your action buttons */}
                       <button className="text-blue-600 hover:underline">
@@ -97,6 +101,7 @@ export default function Stok() {
           )}
         </div>
       </div>
+      {showModal && <AddBarang onClose={() => setShowModal(false)} />}
     </div>
   );
 }

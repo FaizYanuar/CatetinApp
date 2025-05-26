@@ -1,5 +1,5 @@
 import { db } from '@/utils/dbConfig';
-import { items } from '@/utils/schema'; // or wherever your items table is
+import { items } from '@/utils/schema'; 
 import { NextResponse } from 'next/server';
 
 export async function GET() {
