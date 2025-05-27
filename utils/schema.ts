@@ -8,6 +8,7 @@ import {
   timestamp,
   date,
   numeric,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -41,6 +42,7 @@ export const transactions = pgTable("transactions", {
   payment_method: varchar("payment_method", { length: 50 }),
   notes:          text("notes"),
   created_at:     timestamp("created_at").notNull().default(sql`now()`),
+  is_stock_related: boolean("is_stock_related").notNull().default(false)                        
 });
 
 // 4) Transaction Items

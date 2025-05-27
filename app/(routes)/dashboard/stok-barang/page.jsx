@@ -7,17 +7,25 @@ export default function Stok() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/stock")
-      .then((res) => res.json())
-      .then((data) => {
+  fetch("/api/stock")
+    .then((res) => res.json())
+    .then((data) => {
+      if (Array.isArray(data)) {
         setItems(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load stock:", err);
-        setLoading(false);
-      });
-  }, []);
+      } else {
+        console.error("Expected array but got:", data);
+        setItems([]); // or show an error
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to load stock:", err);
+      setItems([]);
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, []);
+
 
   const formatIDR = (value) =>
     new Intl.NumberFormat("id-ID", {
@@ -30,7 +38,7 @@ export default function Stok() {
 
 
   return (
-    <div className="bg-[#DEDFEC] h-screen">
+    <div className="bg-[#DEDFEC] h-fit pb-3">
       <div className="p-5">
         <h1 className="font-semibold">
           Inventory | <span className="text-blue-800">Stok Barang</span>
