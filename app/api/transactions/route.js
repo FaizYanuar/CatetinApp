@@ -7,6 +7,7 @@ import {
   transaction_items,
   stock_movements
 } from '@/utils/schema';
+import { and, eq } from 'drizzle-orm';
 
 export async function POST(req) {
   const { userId } = getAuth(req);
@@ -63,3 +64,28 @@ export async function POST(req) {
 
   return NextResponse.json({ message: 'Transaction saved' }, { status: 201 });
 }
+
+
+export async function GET() {
+  try {
+    const results = await db
+      .select()
+      .from(transactions)
+      .where(and(
+        eq(transactions.type, "expense"),
+        eq(transactions.is_stock_related, true)
+      ))
+      .orderBy(transactions.created_at);
+
+    return new Response(JSON.stringify(results), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  } catch (err) {
+    console.error("API ERROR:", err);
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+      status: 500
+    });
+  }
+}
+
