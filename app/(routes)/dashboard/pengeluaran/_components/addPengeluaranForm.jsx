@@ -1,9 +1,6 @@
-'use client';
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@clerk/nextjs';
 
 export default function AddPengeluaranForm({ onClose }) {
-  const { getToken } = useAuth();
   const [items, setItems] = useState([]);
   const [lines, setLines] = useState([{ itemId: 0, qty: 1, unitPrice: 0 }]);
   const [name, setName] = useState('');
@@ -60,14 +57,8 @@ export default function AddPengeluaranForm({ onClose }) {
     ));
   }
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
-    const token = await getToken();
-    if (!token) {
-      console.error('No auth token');
-      return;
-    }
-
     const total = lines.reduce((sum, ln) => sum + ln.unitPrice * ln.qty, 0);
     const payload = {
       name,
@@ -83,27 +74,9 @@ export default function AddPengeluaranForm({ onClose }) {
         unit_price: ln.unitPrice
       }))
     };
-
-    try {
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('Server error:', error);
-        return;
-      }
-
-      onClose();
-    } catch (err) {
-      console.error('Network error:', err);
-    }
+    console.log('Submitting', payload);
+    // call your POST /api/transactions here
+    // then onClose() or reset form
   }
 
   return (
