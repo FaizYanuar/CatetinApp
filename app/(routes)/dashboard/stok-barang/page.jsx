@@ -7,25 +7,24 @@ export default function Stok() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  fetch("/api/stock")
-    .then((res) => res.json())
-    .then((data) => {
-      if (Array.isArray(data)) {
-        setItems(data);
-      } else {
-        console.error("Expected array but got:", data);
-        setItems([]); // or show an error
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load stock:", err);
-      setItems([]);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-}, []);
-
+    fetch("/api/stock")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setItems(data);
+        } else {
+          console.error("Expected array but got:", data);
+          setItems([]); // or show an error
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load stock:", err);
+        setItems([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const formatIDR = (value) =>
     new Intl.NumberFormat("id-ID", {
@@ -36,6 +35,8 @@ export default function Stok() {
 
   const [showModal, setShowModal] = useState(false);
 
+
+  const BATAS_MINIMUM_STOK = 15;
 
   return (
     <div className="bg-[#DEDFEC] h-fit pb-3">
@@ -83,7 +84,9 @@ export default function Stok() {
                 {items.map((item) => (
                   <tr
                     key={item.id}
-                    className="border-t hover:bg-gray-50"
+                    className={`border-t hover:bg-gray-50 ${
+                      (item.current_stock ?? 0) < BATAS_MINIMUM_STOK ? 'bg-red-100' : '' // Optional: highlight the whole row
+                    }`}
                   >
                     <td className="px-4 py-2">{item.name}</td>
                     <td className="px-4 py-2 hidden md:table-cell">
@@ -95,16 +98,21 @@ export default function Stok() {
                     <td className="px-4 py-2 hidden md:table-cell">
                       {formatIDR(item.sale_price)}
                     </td>
-                    <td className="px-4 py-2">{item.current_stock ?? 0}</td>
                     <td className="px-4 py-2">
-                      {/* Replace this with your action buttons */}
+                      {item.current_stock ?? 0}
+                      {(item.current_stock ?? 0) < BATAS_MINIMUM_STOK && (
+                        <span className="ml-2 text-red-500 font-bold" title="Stok menipis!">
+                          ⚠️
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
                       <button className="text-blue-600 hover:underline">
                         Edit
                       </button>
                     </td>
                   </tr>
                 ))}
-                  
               </tbody>
             </table>
           )}

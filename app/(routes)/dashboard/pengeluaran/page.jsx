@@ -60,7 +60,7 @@ useEffect(() => {
                   <td className="px-4 py-2 hidden md:table-cell">Rp {tx.total_amount.toLocaleString("id-ID")}</td>
                   <td className="px-4 py-2">{tx.notes || "-"}</td>
                   <td className="px-4 py-2">
-                    <button className="text-blue-600 hover:underline">Edit</button>
+                    <button className=" bg-green-400 py-1 px-3 rounded-sm hover:cursor-pointer hover:bg-[#192030] hover:text-white transition-colors duration-300">Detail</button>
                   </td>
                 </tr>
               ))}
