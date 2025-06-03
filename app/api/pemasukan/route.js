@@ -70,7 +70,7 @@ export async function GET() {
       .select()
       .from(transactions)
       .where(and(
-        eq(transactions.type, "sale"),                // 🔁 change 'expense' to 'income'
+        eq(transactions.type, "sale"),               
         eq(transactions.is_stock_related, true)
       ))
       .orderBy(transactions.created_at);

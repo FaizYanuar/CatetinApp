@@ -186,7 +186,7 @@ export default function AddPengeluaranForm({ onClose }) {
                   type="text"
                   id="transactionName"
                   required
-                  placeholder="Cth: Pembelian ATK Bulanan"
+                  placeholder="Cth: Pembelian Stok X"
                   value={transactionName}
                   onChange={e => setTransactionName(e.target.value)}
                   className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
