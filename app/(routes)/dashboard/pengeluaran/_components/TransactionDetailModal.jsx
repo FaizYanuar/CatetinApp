@@ -23,8 +23,11 @@ export default function TransactionDetailModal({ transaction, onClose }) {
     }).format(numberValue);
   };
 
+  // Helper to display a value or a dash if it's empty
+  const displayValue = (value) => value || '-';
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
       <div className="bg-white rounded-lg p-6 md:p-8 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalFadeInScale">
         {/* Modal Header */}
         <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
@@ -46,7 +49,7 @@ export default function TransactionDetailModal({ transaction, onClose }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
             <strong className="text-gray-500">Nama Transaksi:</strong>
-            <span className="md:col-span-2">{transaction.name}</span>
+            <span className="md:col-span-2">{displayValue(transaction.name)}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
             <strong className="text-gray-500">Tanggal:</strong>
@@ -54,19 +57,54 @@ export default function TransactionDetailModal({ transaction, onClose }) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
             <strong className="text-gray-500">Metode Pembayaran:</strong>
-            <span className="md:col-span-2">{transaction.payment_method || "-"}</span>
+            <span className="md:col-span-2">{displayValue(transaction.payment_method)}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
-            <strong className="text-gray-500">Catatan:</strong>
-            <span className="md:col-span-2 whitespace-pre-wrap break-words">{transaction.notes || "-"}</span>
+            <strong className="text-gray-500">Catatan Transaksi:</strong>
+            <span className="md:col-span-2 whitespace-pre-wrap break-words">{displayValue(transaction.notes)}</span>
           </div>
-          <hr className="my-4 border-gray-200"/>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 items-center">
+        </div>
+
+        {/* Supplier Info Section - Display only if supplier_id or supplier_name exists */}
+        {(transaction.supplier_id || transaction.supplier_name) && (
+          <>
+            <hr className="my-4 border-gray-200"/>
+            <h3 className="text-lg font-semibold mb-3 text-gray-700">Detail Supplier</h3>
+            <div className="space-y-3 mb-6 text-sm text-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Nama Supplier:</strong>
+                <span className="md:col-span-2">{displayValue(transaction.supplier_name)}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Kota:</strong>
+                <span className="md:col-span-2">{displayValue(transaction.supplier_city)}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Email:</strong>
+                <span className="md:col-span-2">{displayValue(transaction.supplier_email)}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Telepon:</strong>
+                <span className="md:col-span-2">{displayValue(transaction.supplier_phone)}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Alamat:</strong>
+                <span className="md:col-span-2 whitespace-pre-wrap break-words">{displayValue(transaction.supplier_address)}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2">
+                <strong className="text-gray-500">Catatan Supplier:</strong>
+                <span className="md:col-span-2 whitespace-pre-wrap break-words">{displayValue(transaction.supplier_notes)}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        <hr className="my-4 border-gray-200"/>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 items-center mb-6">
             <strong className="text-gray-600 text-base">Total Pembelian:</strong>
             <span className="md:col-span-2 font-bold text-lg text-green-600">
               {formatCurrency(transaction.total_amount)}
             </span>
-          </div>
         </div>
 
         {/* Items Bought Section */}

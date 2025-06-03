@@ -1,8 +1,14 @@
+// app/api/transactions/[transactionId]/route.js
 import { NextResponse } from 'next/server';
-import { db } from '@/utils/dbConfig'; // Ensure this path is correct
-import { transactions, transaction_items, items as itemsSchema } from '@/utils/schema'; // Renamed items to itemsSchema to avoid conflict
-import { eq, and } from 'drizzle-orm';
-import { getAuth } from '@clerk/nextjs/server'; // Assuming you use Clerk for auth
+import { db } from '@/utils/dbConfig';
+import {
+  transactions,
+  transaction_items,
+  items as itemsSchema,
+  suppliers // Pastikan suppliers diimpor
+} from '@/utils/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { getAuth } from '@clerk/nextjs/server';
 
 export async function GET(req, { params }) {
   try {
@@ -18,11 +24,31 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Invalid transaction ID provided' }, { status: 400 });
     }
 
-    // Fetch the main transaction details
-    // Ensure you are filtering by user_id as well for security
+    // Ambil detail transaksi utama dan gabungkan dengan supplier
     const transactionData = await db
-      .select()
+      .select({
+        // Pilih semua field dari tabel transactions
+        id: transactions.id,
+        user_id: transactions.user_id,
+        name: transactions.name,
+        supplier_id: transactions.supplier_id,
+        date: transactions.date,
+        type: transactions.type,
+        total_amount: transactions.total_amount,
+        payment_method: transactions.payment_method,
+        notes: transactions.notes, // Catatan spesifik transaksi
+        created_at: transactions.created_at,
+        is_stock_related: transactions.is_stock_related,
+        // Pilih field supplier yang dibutuhkan
+        supplier_name: suppliers.name,
+        supplier_city: suppliers.city,
+        supplier_email: suppliers.email,
+        supplier_phone: suppliers.phone,
+        supplier_address: suppliers.address,
+        supplier_notes: suppliers.notes, // Catatan spesifik supplier
+      })
       .from(transactions)
+      .leftJoin(suppliers, eq(transactions.supplier_id, suppliers.id)) // LEFT JOIN untuk menyertakan transaksi tanpa supplier
       .where(and(eq(transactions.id, id), eq(transactions.user_id, userId)))
       .limit(1);
 
@@ -32,32 +58,30 @@ export async function GET(req, { params }) {
 
     const mainTransaction = transactionData[0];
 
-    // Fetch related transaction items and join with items table to get item names and SKUs
+    // Ambil item transaksi terkait
     const itemsData = await db
       .select({
         itemId: transaction_items.item_id,
-        itemName: itemsSchema.name, // Use the aliased itemsSchema
-        sku: itemsSchema.sku,       // Use the aliased itemsSchema
+        itemName: itemsSchema.name,
+        sku: itemsSchema.sku,
         quantity: transaction_items.quantity,
         unit_price: transaction_items.unit_price,
       })
       .from(transaction_items)
-      .leftJoin(itemsSchema, eq(transaction_items.item_id, itemsSchema.id)) // Join with itemsSchema
+      .leftJoin(itemsSchema, eq(transaction_items.item_id, itemsSchema.id))
       .where(eq(transaction_items.transaction_id, mainTransaction.id));
-      // No user_id check needed here directly if transaction_id is already user-scoped,
-      // but ensure itemsSchema.user_id matches if items are also user-specific and you need that check.
 
-    // Combine the main transaction data with its items
+    // Gabungkan data transaksi utama dengan item-itemnya
     const result = {
       ...mainTransaction,
-      items: itemsData, // This will be an array of item objects
+      items: itemsData,
     };
 
     return NextResponse.json(result, { status: 200 });
 
   } catch (error) {
     console.error("API GET Transaction Detail Error:", error);
-    // Avoid sending detailed error messages like error.message to the client in production
+    // Hindari mengirim pesan error detail seperti error.message ke klien di production
     return NextResponse.json({ error: 'Failed to fetch transaction details due to an internal server error.' }, { status: 500 });
   }
 }
