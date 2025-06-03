@@ -170,7 +170,7 @@ export default function AddPengeluaranForm({ onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 backdrop-blur-md z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out">
         <div className="bg-white rounded-lg p-6 w-full max-w-3xl shadow-xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6 pb-3 border-b">
             <h2 className="text-xl font-semibold text-gray-800">Tambah Transaksi Pembelian</h2>

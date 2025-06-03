@@ -99,7 +99,7 @@ function Pengeluaran() {
           onClick={() => setShowAddModal(true)}
           className="bg-blue-600 px-5 py-2.5 rounded-md text-white hover:bg-blue-700 transition-colors duration-250 shadow hover:shadow-md text-sm font-medium hover:cursor-pointer"
         >
-          + Tambah Transaksi
+        Tambah Transaksi
         </button>
 
         <div className="overflow-x-auto my-6 bg-white shadow-lg rounded-lg">

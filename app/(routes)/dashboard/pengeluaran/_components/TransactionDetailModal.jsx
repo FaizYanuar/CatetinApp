@@ -27,7 +27,7 @@ export default function TransactionDetailModal({ transaction, onClose }) {
   const displayValue = (value) => value || '-';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
+    <div className="fixed inset-0 backdrop-blur-md z-50 flex items-center justify-center transition-opacity duration-300 ease-in-out">
       <div className="bg-white rounded-lg p-6 md:p-8 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalFadeInScale">
         {/* Modal Header */}
         <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
