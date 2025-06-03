@@ -203,7 +203,7 @@ export default function AddPengeluaranForm({ onClose }) {
                 <button
                   type="button"
                   onClick={() => removeLine(i)}
-                  className="md:col-span-1 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
+                  className="md:col-span-1 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center hover:cursor-pointer"
                   disabled={lines.length <= 1}
                 >🗑️</button>
               </div>
@@ -211,7 +211,7 @@ export default function AddPengeluaranForm({ onClose }) {
             <button
               type="button"
               onClick={addLine}
-              className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200"
+              className="px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 hover:cursor-pointer"
               disabled={items.length === 0}
             >
               + Tambah Barang
@@ -227,14 +227,14 @@ export default function AddPengeluaranForm({ onClose }) {
             <button
               type="button"
               onClick={() => onClose(false)}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 hover:cursor-pointer"
               disabled={isSubmitting}
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300"
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-300 hover:cursor-pointer"
               disabled={isSubmitting || lines.some(ln => ln.itemId === 0) || lines.length === 0}
             >
               {isSubmitting ? 'Menyimpan...' : 'Simpan'}
