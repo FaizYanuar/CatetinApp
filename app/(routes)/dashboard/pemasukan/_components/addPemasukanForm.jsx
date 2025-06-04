@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 
-export default function PemasukanForm({ onClose }) { // Renamed component, added onClose
+export default function PemasukanForm({ onClose }) {
   const [items, setItems] = useState([]);
-  const [lines, setLines] = useState([{ itemId: '', qty: 1, unitPrice: 0 }]); // Changed initial itemId to empty string for placeholder
-  const [name, setName] = useState(''); // Renamed from transactionName
-  const [date, setDate] = useState(new Date().toISOString().substr(0, 10)); // Matched date init
-  const [paymentMethod, setPaymentMethod] = useState('cash'); // Matched paymentMethod options/init
+  // Changed initial itemId to empty string for placeholder, consistent with AddPengeluaranForm
+  const [lines, setLines] = useState([{ itemId: '', qty: 1, unitPrice: 0 }]);
+  const [name, setName] = useState(''); // Renamed from transactionName, but effectively a name for the sale
+  const [date, setDate] = useState(new Date().toISOString().substr(0, 10));
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null); // Added for error messages
@@ -23,46 +24,44 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
         const availableItems = data.filter(item => item.current_stock > 0);
         setItems(availableItems);
         if (availableItems.length > 0) {
-          // Set initial line if items are available, similar to pengeluaranform
-          // but uses sale_price and checks current_stock
+          // Set initial line if items are available, using sale_price and checking current_stock
           setLines([{
             itemId: availableItems[0].id,
             qty: 1,
             unitPrice: Number(availableItems[0].sale_price)
           }]);
         } else {
-          // If no available items, set lines to empty or a placeholder if needed
-          setLines([{ itemId: '', qty: 1, unitPrice: 0 }]); // Ensure a placeholder line exists
+          // If no available items, ensure a placeholder line exists
+          setLines([{ itemId: '', qty: 1, unitPrice: 0 }]);
         }
       })
       .catch(err => {
         console.error("Error fetching stock:", err);
-        setSubmitError("Failed to load stock items. " + err.message);
+        setSubmitError("Gagal memuat item stok. " + err.message);
       });
   }, []);
 
   function addLine() {
     setSubmitError(null); // Clear previous errors
-    const selectedIds = lines.map(line => line.itemId);
-    const availableItemToAdd = items.find(item => !selectedIds.includes(item.id) && item.current_stock > 0);
+    // Filter items to find those with stock AND not already selected in current lines
+    const currentlySelectedIds = lines.map(line => line.itemId);
+    const uniqueAvailableItems = items.filter(item => item.current_stock > 0 && !currentlySelectedIds.includes(item.id));
 
-    if (availableItemToAdd) {
+    if (uniqueAvailableItems.length > 0) {
+      // Add the first available unique item
       setLines([...lines, {
-        itemId: availableItemToAdd.id,
+        itemId: uniqueAvailableItems[0].id,
         qty: 1,
-        unitPrice: Number(availableItemToAdd.sale_price)
+        unitPrice: Number(uniqueAvailableItems[0].sale_price)
       }]);
-    } else if (items.length > 0 && lines.length < items.filter(it => it.current_stock > 0).length) {
-      // Fallback if all unique items are selected but more could be added (e.g. same item multiple times, if allowed)
-      // For now, this logic tries to add a new unique item. If you want to allow same item,
-      // then use items[0] or similar default.
-      // If we want to allow selecting the same item multiple times, we can change this logic.
-      // For now, adding a new empty line if available items with stock exist but are already selected.
+    } else if (items.filter(item => item.current_stock > 0).length > 0) {
+      // If there are items with stock, but all are already selected uniquely, add an empty line for user to pick
       setLines([...lines, { itemId: '', qty: 1, unitPrice: 0 }]);
     } else {
-      setSubmitError("No new unique available items to add, or all available items are already added.");
+      setSubmitError("Tidak ada barang baru yang tersedia untuk ditambahkan, atau semua barang yang tersedia sudah ditambahkan.");
     }
   }
+
 
   function removeLine(idx) {
     if (lines.length <= 1) return; // Prevent removing the last line
@@ -73,6 +72,7 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
     setSubmitError(null); // Clear previous errors
     const item = items.find(i => i.id === Number(newItemId));
     if (!item) {
+      // If item not found (e.g., placeholder selected), reset unit price
       setLines(lines.map((ln, i) =>
         i === idx
           ? { itemId: Number(newItemId), qty: ln.qty, unitPrice: 0 }
@@ -90,8 +90,8 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
   function onQtyChange(idx, newQty) {
     setSubmitError(null); // Clear previous errors
     const item = items.find(i => i.id === lines[idx].itemId);
-    const maxQty = item ? item.current_stock : 1; // Ensure qty doesn't exceed stock
-    const validatedQty = Math.max(1, Math.min(Number(newQty), maxQty));
+    const maxQty = item ? item.current_stock : 0; // Ensure qty doesn't exceed stock, if no item selected, max is 0
+    const validatedQty = Math.max(1, Math.min(Number(newQty) || 1, maxQty)); // Ensure qty is at least 1 and not more than maxStock
 
     setLines(lines.map((ln, i) =>
       i === idx ? { ...ln, qty: validatedQty } : ln
@@ -103,26 +103,25 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
     setSubmitError(null); // Clear previous errors
 
     if (!name.trim()) {
-      setSubmitError("Please fill in transaction name.");
+      setSubmitError("Silakan isi nama pembeli.");
       return;
     }
     if (lines.length === 0 || lines.some(line => !line.itemId || line.qty <= 0)) {
-      setSubmitError("Please select an item and specify a valid quantity for all lines.");
+      setSubmitError("Silakan pilih barang dan tentukan jumlah yang valid untuk semua baris.");
       return;
     }
     // Ensure all lines have a valid item and quantity
     for (const line of lines) {
       const itemDetails = items.find(i => i.id === line.itemId);
       if (!itemDetails) {
-        setSubmitError("One or more selected items are invalid.");
+        setSubmitError("Salah satu atau lebih barang yang dipilih tidak valid.");
         return;
       }
       if (line.qty > itemDetails.current_stock) {
-        setSubmitError(`Quantity for item "${itemDetails.name}" exceeds available stock (${itemDetails.current_stock}).`);
+        setSubmitError(`Jumlah untuk barang "${itemDetails.name}" melebihi stok yang tersedia (${itemDetails.current_stock}).`);
         return;
       }
     }
-
 
     setSubmitting(true);
     const total = lines.reduce((sum, ln) => sum + ln.unitPrice * ln.qty, 0);
@@ -135,7 +134,7 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
       notes,
       is_stock_related: true,
       items: lines.map(ln => ({
-        item_id: ln.itemId, // Ensure field names match API expectations
+        item_id: ln.itemId,
         quantity: ln.qty,
         unit_price: ln.unitPrice
       }))
@@ -144,22 +143,22 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
     console.log('Submitting Pemasukan', payload);
 
     try {
-      const response = await fetch("/api/transactions", {
+      const response = await fetch("/api/transactions", { // Endpoint for transactions, not /api/pemasukan
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        alert("Sale transaction added successfully!");
+        alert("Transaksi penjualan berhasil ditambahkan!");
         if (onClose) onClose(true); // Call onClose to close the modal/form, pass true for success
       } else {
         const errorData = await response.json();
-        setSubmitError(`Failed to add transaction: ${errorData.message || response.statusText}`);
+        setSubmitError(`Gagal menambahkan transaksi: ${errorData.message || response.statusText}`);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      setSubmitError("An error occurred while submitting the form.");
+      setSubmitError("Terjadi kesalahan saat mengirimkan formulir.");
     } finally {
       setSubmitting(false);
     }
@@ -304,7 +303,8 @@ export default function PemasukanForm({ onClose }) { // Renamed component, added
               type="button"
               onClick={addLine}
               className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 text-sm font-medium hover:cursor-pointer"
-              disabled={submitting || items.length === 0 || lines.length >= items.filter(it => it.current_stock > 0).length}
+              disabled={submitting || items.length === 0 || lines.filter(l => l.itemId !== '').length >= items.filter(it => it.current_stock > 0).length}
+              // Improved disabled logic: disable if all unique items with stock are already selected
             >
               + Tambah Barang
             </button>
