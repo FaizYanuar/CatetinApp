@@ -1,6 +1,6 @@
 // app/(routes)/dashboard/pengeluaran/_components/addPengeluaranForm.jsx
 import React, { useState, useEffect } from 'react';
-import AddSupplierModal from './AddSupplierModal'; // Import the new modal
+import AddSupplierModal from './addSupplierModal'; // Import the new modal
 
 export default function AddPengeluaranForm({ onClose }) {
   const [items, setItems] = useState([]);
