@@ -1,7 +1,7 @@
 "use client"
 import { UserButton, useUser } from '@clerk/nextjs'
 import React from 'react'
-import dashboardCard from './_components/dashboardCard';
+import DashboardCard from './_components/dashboardCard';
 
 function Dashboard() {
   const {user}=useUser();
@@ -12,7 +12,7 @@ function Dashboard() {
             <h1 className='mt-5 text-xl font-semibold'>Hello, {user?.fullName}! <span className='text-2xl'>👋</span></h1>
         </div>
 
-        <dashboardCard/>
+        <DashboardCard />
     </div>
   )
 }
