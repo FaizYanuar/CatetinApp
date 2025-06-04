@@ -1,13 +1,11 @@
-// File: app/(routes)/dashboard/_components/SideNav.jsx
 'use client';
 
-// import Image from 'next/image'; // Tidak digunakan di kode Anda
-import { usePathname } from 'next/navigation'; // Pastikan next/navigation bisa diresolve
-import React from 'react'; // useEffect tidak digunakan, bisa dihapus
+import { usePathname } from 'next/navigation';
+import React from 'react';
 import { LayoutDashboard, ShoppingBasket, ShoppingCart, Archive, X as CloseIcon } from 'lucide-react';
-import Link from 'next/link'; // Pastikan next/link bisa diresolve
+import Link from 'next/link';
 
-export default function SideNav({ onCloseMobileNav, isMobileView }) { // Menggunakan export default
+export default function SideNav({ onCloseMobileNav, isMobileView }) {
   const navLinks = [
     { id: 1, name: "Dashboard", path: "/dashboard", Icon: LayoutDashboard },
     { id: 2, name: "Pemasukan", path: "/dashboard/pemasukan", Icon: ShoppingBasket },
@@ -19,13 +17,12 @@ export default function SideNav({ onCloseMobileNav, isMobileView }) { // Menggun
 
   const handleLinkClick = () => {
     if (isMobileView && onCloseMobileNav) {
-      onCloseMobileNav(); // Tutup nav seluler saat link diklik
+      onCloseMobileNav();
     }
   };
 
   return (
     <div className='h-screen bg-[#192030] flex flex-col'>
-      {/* Bagian Atas SideNav: Tombol Tutup (Mobile) atau Logo/Judul (Desktop) */}
       <div className="p-4">
         {isMobileView && (
           <div className="flex justify-end items-center mb-4">
@@ -43,35 +40,35 @@ export default function SideNav({ onCloseMobileNav, isMobileView }) { // Menggun
         </div>
       </div>
 
-      {/* Daftar Link Navigasi */}
       <nav className="flex-grow overflow-y-auto">
         <div className='justify-center items-center'>
           {navLinks.map((link) => {
             const IconComponent = link.Icon;
             const isActive = path === link.path;
             return (
-              <Link href={link.path} key={link.id} passHref legacyBehavior>
-                <a
-                  onClick={handleLinkClick}
-                  className={`
-                    group mx-auto hover:bg-[#4A5568] w-full h-20 items-center flex gap-2 justify-center
-                    transition-colors duration-300 cursor-pointer
-                    ${isActive ? 'bg-[#68658d] text-white' : 'text-[#95969B] hover:text-white'}
-                  `}
-                >
-                  <IconComponent className={`
-                    w-6 h-6
-                    ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'} 
-                    transition-colors duration-300
-                  `}/>
-                  <span className={`
-                    text-base 
-                    ${isActive ? 'text-white font-semibold' : 'text-[#95969B] group-hover:text-white'}
-                    transition-colors duration-300
-                  `}>
-                    {link.name}
-                  </span>
-                </a>
+              // Menghapus legacyBehavior dan passHref. onClick dan className dipindahkan ke Link.
+              <Link 
+                href={link.path} 
+                key={link.id} 
+                onClick={handleLinkClick}
+                className={`
+                  group mx-auto hover:bg-[#4A5568] w-full h-20 items-center flex gap-2 justify-center
+                  transition-colors duration-300 cursor-pointer
+                  ${isActive ? 'bg-[#68658d] text-white' : 'text-[#95969B] hover:text-white'}
+                `}
+              >
+                <IconComponent className={`
+                  w-6 h-6
+                  ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'} 
+                  transition-colors duration-300
+                `}/>
+                <span className={`
+                  text-base 
+                  ${isActive ? 'text-white font-semibold' : 'text-[#95969B] group-hover:text-white'}
+                  transition-colors duration-300
+                `}>
+                  {link.name}
+                </span>
               </Link>
             );
           })}
