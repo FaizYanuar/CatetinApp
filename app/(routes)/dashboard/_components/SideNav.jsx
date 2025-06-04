@@ -78,7 +78,6 @@ export default function SideNav({ onCloseMobileNav, isMobileView }) { // Menggun
         </div>
       </nav>
 
-      {/* Footer SideNav (Opsional) */}
       <div className="p-4 mt-auto border-t border-gray-700">
         <p className="text-xs text-gray-500 text-center">&copy; {new Date().getFullYear()}</p>
       </div>
