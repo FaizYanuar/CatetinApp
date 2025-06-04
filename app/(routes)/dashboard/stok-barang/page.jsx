@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useUser } from '@clerk/nextjs'; // Import useUser dari Clerk
 import AddBarang from '@/app/(routes)/dashboard/stok-barang/_components/addBarangForm'; // Pastikan path ini benar
 // Impor ikon jika Anda ingin menggunakannya untuk aksi atau indikator
-import { Edit, Trash2, AlertTriangle } from 'lucide-react'; 
+import { Trash2, AlertTriangle, X } from 'lucide-react'; // Hapus Edit, tambahkan X untuk modal
 
 export default function Stok() {
   const { user, isLoaded } = useUser(); // Dapatkan informasi pengguna dari Clerk
@@ -12,23 +12,33 @@ export default function Stok() {
   const [loading, setLoading] = useState(true); // Default ke true
   const [error, setError] = useState(null); // State untuk menangani error fetch
 
-  const [showModal, setShowModal] = useState(false);
-  const BATAS_MINIMUM_STOK = 15;
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const BATAS_MINIMUM_STOK = 5;
 
   // Fungsi untuk mengambil data stok
   const fetchStockItems = useCallback(async () => {
-    if (!user) { // Jangan fetch jika tidak ada user
-      setItems([]);
-      setLoading(false);
-      return;
+    if (!user && isLoaded) {
+      console.log("Stok Component: Tidak ada pengguna yang login, mengambil item global (jika API mendukung).");
+    } else if (!isLoaded) {
+        return;
     }
+    
     setLoading(true);
-    setError(null); // Reset error sebelum fetch baru
-    console.log(`Stok Component: Memulai pengambilan data stok untuk user ID: ${user.id}...`);
+    setError(null);
+    console.log(`Stok Component: Memulai pengambilan data stok untuk user ID: ${user ? user.id : 'Guest'}...`);
     try {
       const res = await fetch("/api/stock");
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `Failed to fetch stock: ${res.statusText}`}));
+        let errorData = { error: `Failed to fetch stock: ${res.statusText} (Status: ${res.status})` };
+        try {
+            errorData = await res.json();
+        } catch (e) {
+            // Biarkan errorData default jika parsing gagal
+        }
         console.error("Bad response fetching stock:", res.status, errorData);
         setError(errorData.error || `Gagal mengambil data stok: ${res.status}`);
         setItems([]);
@@ -49,19 +59,12 @@ export default function Stok() {
     } finally {
       setLoading(false);
     }
-  }, [user]); // Tambahkan user sebagai dependensi useCallback
+  }, [user, isLoaded]);
 
   useEffect(() => {
-    // Hanya jalankan fetch jika Clerk selesai loading dan user sudah teridentifikasi
-    if (isLoaded && user) {
+    if (isLoaded) {
       fetchStockItems();
-    } else if (isLoaded && !user) {
-      // Jika Clerk sudah loaded tapi tidak ada user (misalnya, setelah logout)
-      console.log("Stok Component: Tidak ada pengguna yang login, kosongkan item stok.");
-      setItems([]);
-      setLoading(false); // Pastikan loading dihentikan
     }
-    // user?.id dan isLoaded sebagai dependensi untuk re-fetch saat user berubah
   }, [user?.id, isLoaded, fetchStockItems]);
 
   const formatIDR = (value) => {
@@ -74,10 +77,45 @@ export default function Stok() {
     }).format(numValue);
   }
 
-  const handleModalClose = (refresh) => {
-    setShowModal(false);
-    if (refresh && user) { // Hanya refresh jika ada user
+  const handleAddModalClose = (refresh) => {
+    setShowAddModal(false);
+    if (refresh && isLoaded) {
         fetchStockItems();
+    }
+  };
+
+  const openDeleteConfirmModal = (item) => {
+    setItemToDelete(item);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const closeDeleteConfirmModal = () => {
+    setItemToDelete(null);
+    setShowDeleteConfirmModal(false);
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/stock/${itemToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `Gagal menghapus item: ${res.statusText}` }));
+        throw new Error(errorData.error || `Gagal menghapus item: ${res.status}`);
+      }
+      // Sukses menghapus
+      console.log(`Item ID: ${itemToDelete.id} berhasil dihapus.`);
+      setItems(prevItems => prevItems.filter(item => item.id !== itemToDelete.id)); // Optimistic update atau panggil fetchStockItems()
+      // fetchStockItems(); // Panggil untuk refresh data dari server
+    } catch (err) {
+      console.error("Failed to delete item:", err);
+      setError(err.message || "Terjadi kesalahan saat menghapus item.");
+      // Tampilkan notifikasi error ke pengguna jika perlu
+    } finally {
+      setIsDeleting(false);
+      closeDeleteConfirmModal();
     }
   };
   
@@ -103,8 +141,7 @@ export default function Stok() {
     );
   }
 
-  // Jika sudah selesai loading (isLoaded true) dan tidak ada user, tampilkan pesan sesuai
-  if (isLoaded && !user) {
+  if (isLoaded && !user && items.length === 0 && !error) { 
     return (
       <div className="bg-[#DEDFEC] h-fit min-h-screen pb-3">
         <div className="p-5">
@@ -114,7 +151,7 @@ export default function Stok() {
         </div>
         <div className="px-5 mt-5">
           <div className="text-center py-10 bg-white shadow rounded-lg">
-            <p className="text-gray-500">Silakan login untuk melihat data stok barang.</p>
+            <p className="text-gray-500">Silakan login untuk mengelola stok barang atau melihat stok spesifik Anda.</p>
           </div>
         </div>
       </div>
@@ -140,7 +177,7 @@ export default function Stok() {
   }
 
   return (
-    <div className="bg-[#DEDFEC] h-fit min-h-screen pb-10"> {/* min-h-screen untuk memastikan background mengisi layar */}
+    <div className="bg-[#DEDFEC] h-fit min-h-screen pb-10">
       <div className="p-5">
         <h1 className="font-semibold">
           Inventory | <span className="text-blue-800">Stok Barang</span>
@@ -148,18 +185,20 @@ export default function Stok() {
       </div>
 
       <div className="px-5 mt-5">
-        <button 
-          onClick={() => setShowModal(true)} 
-          className="bg-green-600 px-5 py-2.5 rounded-md text-white hover:bg-green-700 transition-colors duration-250 shadow hover:shadow-md text-sm font-medium"
-        >
-          Tambah Barang
-        </button>
+        {user && (
+            <button 
+              onClick={() => setShowAddModal(true)} 
+              className="bg-green-600 px-5 py-2.5 rounded-md text-white hover:bg-green-700 transition-colors duration-250 shadow hover:shadow-md text-sm font-medium mb-6"
+            >
+              Tambah Barang
+            </button>
+        )}
 
-        <div className="overflow-x-auto my-6 bg-white shadow-lg rounded-lg">
-          {items.length === 0 && !loading ? ( // Cek !loading juga
+        <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+          {items.length === 0 && !loading ? (
             <div className="text-center py-10">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mx-auto mb-2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                <p className="text-gray-500">Belum ada barang yang ditambahkan.</p>
+                <p className="text-gray-500">Belum ada barang yang dapat ditampilkan.</p>
             </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-200">
@@ -186,55 +225,92 @@ export default function Stok() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`hover:bg-gray-50 transition-colors duration-150 ${
-                      (item.current_stock ?? 0) < BATAS_MINIMUM_STOK ? 'bg-red-50' : '' // Highlight baris jika stok menipis
-                    }`}
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{item.name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
-                      {item.sku}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
-                      {formatIDR(item.cost_price)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
-                      {formatIDR(item.sale_price)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
-                      {item.current_stock ?? 0}
-                      {(item.current_stock ?? 0) < BATAS_MINIMUM_STOK && (
-                        <span className="ml-1.5 text-red-500 inline-flex items-center" title={`Stok menipis! Batas minimum: ${BATAS_MINIMUM_STOK}`}>
-                          <AlertTriangle size={14} />
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                      <button 
-                        onClick={() => alert(`Edit item ID: ${item.id}`)} // Placeholder untuk aksi edit
-                        className="text-indigo-600 hover:text-indigo-900 hover:underline transition-colors duration-150 mr-2"
-                        title="Edit Barang"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        onClick={() => alert(`Hapus item ID: ${item.id}`)} // Placeholder untuk aksi hapus
-                        className="text-red-600 hover:text-red-900 hover:underline transition-colors duration-150"
-                        title="Hapus Barang"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {items.map((item) => {
+                  const isGlobalAndNotOwner = item.item_owner_id === null && user;
+                  const isNotOwnedByUser = item.item_owner_id !== null && user && item.item_owner_id !== user.id;
+                  const actionsUnavailable = !user || isGlobalAndNotOwner || isNotOwnedByUser;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`hover:bg-gray-50 transition-colors duration-150 ${
+                        (item.current_stock ?? 0) < BATAS_MINIMUM_STOK ? 'bg-red-50' : '' 
+                      }`}
+                    >
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{item.name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        {item.sku}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        {formatIDR(item.cost_price)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">
+                        {formatIDR(item.sale_price)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-center">
+                        {item.current_stock ?? 0}
+                        {(item.current_stock ?? 0) < BATAS_MINIMUM_STOK && (
+                          <span className="ml-1.5 text-red-500 inline-flex items-center" title={`Stok menipis! Batas minimum: ${BATAS_MINIMUM_STOK}`}>
+                            <AlertTriangle size={14} />
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        {actionsUnavailable ? (
+                          <span className="text-xs text-gray-400 italic">Tidak Tersedia</span>
+                        ) : (
+                          <button 
+                            onClick={() => openDeleteConfirmModal(item)}
+                            className="text-red-600 hover:text-red-800 hover:underline transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Hapus Barang"
+                            disabled={isDeleting}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
       </div>
-      {showModal && <AddBarang onClose={handleModalClose} />}
+      {showAddModal && <AddBarang onClose={handleAddModalClose} />}
+
+      {/* Modal Konfirmasi Penghapusan */}
+      {showDeleteConfirmModal && itemToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 ease-in-out scale-100">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Konfirmasi Penghapusan</h3>
+              <button onClick={closeDeleteConfirmModal} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Apakah Anda yakin ingin menghapus barang "<strong>{itemToDelete.name}</strong>"? Tindakan ini tidak dapat diurungkan.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={closeDeleteConfirmModal}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md border border-gray-300 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDeleteItem}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-red-300 disabled:opacity-70"
+              >
+                {isDeleting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

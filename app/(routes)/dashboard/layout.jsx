@@ -1,10 +1,11 @@
 // File: app/(routes)/dashboard/layout.jsx
-// (Pastikan path impor untuk SideNav dan HeaderDashboard sudah benar)
+// (Pastikan path impor untuk SideNav dan HeaderDashboard sudah benar relatif terhadap file ini)
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import SideNav from './_components/SideNav'; // Menggunakan SideNav kustom Anda
-import HeaderDashboard from './_components/HeaderDashboard'; // Menggunakan HeaderDashboard kustom Anda
+// Asumsi SideNav dan HeaderDashboard ada di folder _components di dalam direktori (routes)/dashboard
+import SideNav from './_components/SideNav'; 
+import HeaderDashboard from './_components/HeaderDashboard';
 
 export default function DashboardLayout({ children }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -66,8 +67,3 @@ export default function DashboardLayout({ children }) {
     </div>
   );
 }
-
-// ----------------------------------------------------------------------------------
-
-
-// ----------------------------------------------------------------------------------
