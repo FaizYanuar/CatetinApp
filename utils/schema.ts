@@ -51,7 +51,7 @@ export const transactions = pgTable("transactions", {
   name: varchar("name", { length: 200 }),
   supplier_id: integer("supplier_id").references(() => suppliers.id),
   date: date("date").notNull(),
-  type: text("type").notNull(),
+  type: text("type").notNull(), //sale or expense
   total_amount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),
   payment_method: varchar("payment_method", { length: 50 }),
   notes: text("notes"),
