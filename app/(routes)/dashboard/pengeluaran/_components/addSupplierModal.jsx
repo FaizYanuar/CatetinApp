@@ -33,7 +33,7 @@ export default function AddSupplierModal({ onClose, onSupplierAdded }) {
       }
 
       const newSupplier = await response.json();
-      onSupplierAdded(newSupplier); // Callback to update parent component
+      onSupplierAdded(newSupplier); 
       onClose(); // Close the modal
 
     } catch (err) {
