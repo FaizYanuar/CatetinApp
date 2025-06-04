@@ -1,0 +1,1 @@
+ALTER TABLE "suppliers" ALTER COLUMN "user_id" DROP NOT NULL;

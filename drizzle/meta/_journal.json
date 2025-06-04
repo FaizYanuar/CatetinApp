@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1748942152843,
+      "tag": "0000_secret_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1748943497721,
+      "tag": "0001_military_mathemanic",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748950875437,
+      "tag": "0002_panoramic_sasquatch",
+      "breakpoints": true
+    }
+  ]
+}

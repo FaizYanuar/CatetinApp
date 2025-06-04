@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ALTER COLUMN "name" DROP NOT NULL;
