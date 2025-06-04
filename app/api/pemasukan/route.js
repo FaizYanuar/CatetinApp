@@ -124,7 +124,7 @@ export async function GET(req) { // Tambahkan 'req' sebagai parameter
       .from(transactions)
       .where(and(
         eq(transactions.user_id, userId), // Filter berdasarkan userId yang sedang login
-        eq(transactions.type, "income")   // Filter hanya transaksi 'income' (pemasukan/penjualan)
+        eq(transactions.type, "sale")   // Filter hanya transaksi 'income' (pemasukan/penjualan)
         // eq(transactions.is_stock_related, true) // Ini mungkin tidak perlu jika semua 'income' adalah penjualan terkait stok
       ))
       .orderBy(desc(transactions.date), desc(transactions.created_at)); // Urutkan terbaru dulu
