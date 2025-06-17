@@ -29,7 +29,7 @@ export async function POST(req) {
     if (!name || !date || !type || total_amount === undefined || total_amount === null) {
       return NextResponse.json({ error: 'Missing required transaction fields: name, date, type, total_amount' }, { status: 400 });
     }
-    if (type !== 'expense' && type !== 'income') { // Diubah untuk menerima 'income' juga
+    if (type !== 'expense' && type !== 'sale') { // Diubah untuk menerima 'income' juga
       return NextResponse.json({ error: 'Invalid transaction type' }, { status: 400 });
     }
     // ...
