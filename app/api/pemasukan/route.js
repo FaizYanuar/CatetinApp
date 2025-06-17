@@ -4,12 +4,12 @@ import { getAuth } from '@clerk/nextjs/server';
 import { db } from '@/utils/dbConfig'; // Pastikan path ini benar
 import {
   transactions,
-  // transaction_items, // Tidak digunakan di GET ini, bisa dihapus jika hanya untuk GET
-  // stock_movements    // Tidak digunakan di GET ini, bisa dihapus jika hanya untuk GET
+  transaction_items,
+  stock_movements
 } from '@/utils/schema'; // Pastikan path ini benar
-import { and, eq, desc } from 'drizzle-orm'; // Import desc untuk pengurutan
+import { and, eq, desc, sql } from 'drizzle-orm'; // Pastikan sql diimpor
 
-// Handler untuk POST tetap sama, tidak perlu diubah jika sudah berfungsi
+// Handler untuk POST
 export async function POST(req) {
   const { userId } = getAuth(req);
   if (!userId) {
@@ -20,7 +20,6 @@ export async function POST(req) {
   const {
     name, // Ini akan menjadi nama pembeli atau deskripsi penjualan
     date,
-    // type: 'income', // Seharusnya sudah diatur di frontend atau default di sini
     total_amount,
     payment_method,
     notes,
@@ -37,15 +36,12 @@ export async function POST(req) {
       }
   }
 
-  // Drizzle tidak mendukung transaksi database kompleks secara langsung dengan Neon HTTP driver.
-  // Operasi akan dilakukan secara berurutan.
-
   try {
-    // 1) Insert the transaction
+    // 1) Masukkan transaksi
     const [tx] = await db.insert(transactions)
       .values({
         user_id: userId,
-        name: name, // Nama pembeli atau deskripsi penjualan
+        name: name,
         date: date,
         type: 'income', // Pastikan tipe adalah 'income' untuk pemasukan/penjualan
         total_amount: total_amount,
@@ -60,9 +56,7 @@ export async function POST(req) {
     }
     const newTransactionId = tx.id;
 
-    // 2) Insert each transaction_items row
-    // Pastikan import transaction_items ada jika belum
-    const { transaction_items } = await import('@/utils/schema');
+    // 2) Masukkan setiap baris transaction_items
     await Promise.all(items.map(line =>
       db.insert(transaction_items).values({
         transaction_id: newTransactionId,
@@ -72,16 +66,14 @@ export async function POST(req) {
       })
     ));
 
-    // 3) Record stock movements
-    // Pastikan import stock_movements ada jika belum
-    const { stock_movements } = await import('@/utils/schema');
+    // 3) Catat pergerakan stok
     await Promise.all(items.map(line => {
       return db.insert(stock_movements).values({
         user_id: userId,
         item_id: line.item_id,
         change_qty: -line.quantity, // Penjualan mengurangi stok
         reason: 'sale',
-        transaction_item_id: null // Anda mungkin perlu menghubungkan ini jika skema mendukungnya dan Anda mengambil ID item transaksi
+        transaction_item_id: null // Anda mungkin perlu menghubungkan ini jika skema mendukungnya
       });
     }));
 
@@ -93,43 +85,51 @@ export async function POST(req) {
   }
 }
 
-
-export async function GET(req) { // Tambahkan 'req' sebagai parameter
+// Handler untuk GET dengan fungsionalitas filter
+export async function GET(req) {
   try {
-    const { userId } = getAuth(req); // Dapatkan userId dari sesi Clerk
+    const { userId } = getAuth(req);
     if (!userId) {
-      // Jika tidak ada userId (pengguna tidak login), kembalikan array kosong atau error unauthorized
-      // Untuk konsistensi, lebih baik kembalikan array kosong jika komponen mengharapkan array
-      console.log("API GET Pemasukan: Unauthorized access attempt.");
-      return NextResponse.json([], { status: 200 }); // Atau 401 jika Anda ingin frontend menangani error ini secara spesifik
+      // Mengembalikan array kosong jika tidak ada pengguna yang login
+      return NextResponse.json([], { status: 200 });
     }
 
-    console.log(`API GET Pemasukan: Mengambil data untuk userId: ${userId}`);
+    // Mengambil parameter filter dari URL
+    const { searchParams } = new URL(req.url);
+    const filterType = searchParams.get('type') || 'all';
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
+    const date = searchParams.get('date');
 
-    // Ambil semua field yang dibutuhkan oleh frontend
-    // atau gunakan .select() untuk semua field dari tabel utama
+    console.log(`API GET Pemasukan for userId: ${userId} with filterType: ${filterType}, year: ${year}, month: ${month}, date: ${date}`);
+
+    // Kondisi dasar untuk query
+    const conditions = [
+      eq(transactions.user_id, userId),
+      eq(transactions.type, "sale")
+    ];
+
+    // Menambahkan kondisi filter secara dinamis berdasarkan input
+    if (filterType === 'year' && year) {
+      // Filter hanya berdasarkan tahun
+      conditions.push(sql`EXTRACT(YEAR FROM ${transactions.date}) = ${parseInt(year, 10)}`);
+    } else if (filterType === 'month' && year && month) {
+      // Filter berdasarkan tahun DAN bulan
+      conditions.push(sql`EXTRACT(YEAR FROM ${transactions.date}) = ${parseInt(year, 10)}`);
+      conditions.push(sql`EXTRACT(MONTH FROM ${transactions.date}) = ${parseInt(month, 10)}`);
+    } else if (filterType === 'date' && date) {
+      // Filter berdasarkan tanggal spesifik
+      conditions.push(eq(transactions.date, date));
+    }
+    // Jika filterType adalah 'all', tidak ada kondisi tambahan yang diterapkan
+
     const results = await db
-      .select({
-          id: transactions.id,
-          name: transactions.name, // Ini akan menjadi nama pembeli di frontend
-          customer_name: transactions.name, // Alias jika frontend menggunakan customer_name
-          date: transactions.date,
-          type: transactions.type,
-          total_amount: transactions.total_amount,
-          payment_method: transactions.payment_method,
-          notes: transactions.notes,
-          is_stock_related: transactions.is_stock_related,
-          created_at: transactions.created_at
-      })
+      .select()
       .from(transactions)
-      .where(and(
-        eq(transactions.user_id, userId), // Filter berdasarkan userId yang sedang login
-        eq(transactions.type, "sale")   // Filter hanya transaksi 'income' (pemasukan/penjualan)
-        // eq(transactions.is_stock_related, true) // Ini mungkin tidak perlu jika semua 'income' adalah penjualan terkait stok
-      ))
-      .orderBy(desc(transactions.date), desc(transactions.created_at)); // Urutkan terbaru dulu
+      .where(and(...conditions))
+      .orderBy(desc(transactions.date), desc(transactions.created_at));
 
-    console.log(`API GET Pemasukan: ${results.length} transaksi ditemukan untuk userId: ${userId}`);
+    console.log(`API GET Pemasukan: ${results.length} transaksi ditemukan.`);
     return NextResponse.json(results, { status: 200 });
 
   } catch (err) {

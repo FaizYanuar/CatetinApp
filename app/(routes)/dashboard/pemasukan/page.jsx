@@ -1,75 +1,87 @@
 // File: app/(routes)/dashboard/pemasukan/page.js (atau path yang sesuai)
 'use client'
-import React, { useEffect, useState } from "react";
-import { useUser } from '@clerk/nextjs'; // Import useUser dari Clerk
+import React, { useEffect, useState, useCallback } from "react";
+import { useUser } from '@clerk/nextjs';
 import AddPemasukan from '@/app/(routes)/dashboard/pemasukan/_components/addPemasukanForm';
 import PemasukanDetailModal from '@/app/(routes)/dashboard/pemasukan/_components/PemasukanDetailModal';
+import { Filter, Search } from "lucide-react";
 
 function Pemasukan() {
-  const { user, isLoaded } = useUser(); // Dapatkan informasi pengguna dari Clerk
+  const { user, isLoaded } = useUser();
   const [showAddModal, setShowAddModal] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true); // Default ke true
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
-  // Fungsi untuk mengambil transaksi pemasukan
-  const fetchPemasukanTransactions = async () => {
-    if (!user) { // Jangan fetch jika tidak ada user
+  // State untuk filter
+  const [filterType, setFilterType] = useState('all'); // 'all', 'month', 'year', 'date'
+  const [filterValue, setFilterValue] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    date: new Date().toISOString().split('T')[0],
+  });
+
+  const fetchPemasukanTransactions = useCallback(async () => {
+    if (!user) {
       setTransactions([]);
       setIsLoadingTransactions(false);
       return;
     }
     setIsLoadingTransactions(true);
-    console.log(`Pemasukan: Memulai pengambilan transaksi pemasukan untuk user ID: ${user.id}...`);
+    
+    // Membangun query string berdasarkan filter
+    const params = new URLSearchParams();
+    params.append('type', filterType);
+    if (filterType === 'month') {
+        params.append('year', filterValue.year);
+        params.append('month', filterValue.month);
+    } else if (filterType === 'year') {
+        params.append('year', filterValue.year);
+    } else if (filterType === 'date') {
+        params.append('date', filterValue.date);
+    }
+
+    const queryString = params.toString();
+    console.log(`Pemasukan: Fetching data from /api/pemasukan?${queryString}`);
+
     try {
-      const res = await fetch("/api/pemasukan"); // API endpoint untuk pemasukan
+      const res = await fetch(`/api/pemasukan?${queryString}`);
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Bad response fetching pemasukan:", res.status, errorText);
-        setTransactions([]); // Kosongkan transaksi jika ada error
         throw new Error(`Failed to fetch pemasukan: ${res.status}`);
       }
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setTransactions(data);
-      } else {
-        console.error("Fetched pemasukan data is not an array:", data);
-        setTransactions([]); // Kosongkan jika data tidak sesuai format
-      }
+      setTransactions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Fetch pemasukan failed:", err);
-      setTransactions([]); // Kosongkan transaksi jika ada error
+      setTransactions([]);
     } finally {
       setIsLoadingTransactions(false);
     }
-  };
+  }, [user, filterType, filterValue]);
 
   useEffect(() => {
-    // Hanya jalankan fetch jika Clerk selesai loading dan user sudah teridentifikasi
+    // Dipanggil saat komponen pertama kali dimuat dan setiap kali dependensi berubah
     if (isLoaded && user) {
       fetchPemasukanTransactions();
     } else if (isLoaded && !user) {
-      // Jika Clerk sudah loaded tapi tidak ada user (misalnya, setelah logout)
-      console.log("Pemasukan: Tidak ada pengguna yang login, kosongkan transaksi pemasukan.");
+      // Membersihkan data jika pengguna logout
       setTransactions([]);
-      setIsLoadingTransactions(false); // Pastikan loading dihentikan
+      setIsLoadingTransactions(false);
     }
-    // Tambahkan user?.id dan isLoaded sebagai dependensi.
-    // Ini akan memicu useEffect untuk berjalan kembali ketika user berubah atau status isLoaded berubah.
-  }, [user?.id, isLoaded]);
+  }, [user?.id, isLoaded]); // Dependensi utama untuk memuat data awal atau saat user berubah
 
   const handleShowDetail = async (transactionId) => {
     if (!transactionId) return;
     setIsLoadingDetail(true);
-    setSelectedTransaction(null); // Reset dulu sebelum fetch baru
-    console.log(`Pemasukan: Memuat detail untuk transaksi ID: ${transactionId}`);
+    setSelectedTransaction(null);
     try {
-      const res = await fetch(`/api/pemasukan/${transactionId}`);
+      const res = await fetch(`/api/pemasukan/${transactionId}`); 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: "Failed to load pemasukan details" }));
-        console.error("Bad response fetching pemasukan detail:", res.status, errorData);
         throw new Error(errorData.error || `Server error: ${res.status}`);
       }
       const data = await res.json();
@@ -77,7 +89,7 @@ function Pemasukan() {
       setShowDetailModal(true);
     } catch (err) {
       console.error("Failed to fetch pemasukan details:", err);
-      alert(`Error loading details: ${err.message}`); // Pertimbangkan untuk menggunakan notifikasi yang lebih baik
+      alert(`Error loading details: ${err.message}`);
     } finally {
       setIsLoadingDetail(false);
     }
@@ -85,19 +97,28 @@ function Pemasukan() {
 
   const handleAddModalClose = (refresh) => {
     setShowAddModal(false);
-    if (refresh && user) { // Hanya refresh jika ada user
+    if (refresh && user) {
+      // Setelah menambahkan, refresh data dengan filter saat ini
       fetchPemasukanTransactions();
     }
+  };
+  
+  const handleFilterChange = (e) => {
+      const { name, value } = e.target;
+      setFilterValue(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleApplyFilter = () => {
+    // Memanggil fungsi fetch secara manual saat tombol "Cari" diklik
+    fetchPemasukanTransactions();
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    // Asumsi dateString adalah YYYY-MM-DD dari database, yang dianggap UTC
-    // Untuk menampilkannya sesuai lokal tanpa konversi zona waktu yang rumit:
-    const date = new Date(dateString + 'T00:00:00Z'); // Anggap sebagai UTC
+    const date = new Date(dateString + 'T00:00:00Z');
     return date.toLocaleDateString('id-ID', {
-        timeZone: 'UTC', // Tampilkan tanggal seolah-olah itu adalah tanggal di UTC
-        year: 'numeric', month: 'long', day: 'numeric'
+      timeZone: 'UTC',
+      year: 'numeric', month: 'long', day: 'numeric'
     });
   };
 
@@ -111,38 +132,10 @@ function Pemasukan() {
     }).format(numberValue);
   };
 
-  // Menunggu Clerk dan data awal selesai dimuat
-  if (!isLoaded || isLoadingTransactions) {
-    return (
-      <div className='bg-[#DEDFEC] min-h-screen pb-10'>
-        <div className='p-5'>
-          <h1 className='font-semibold'>Pemasukan | <span className='text-blue-800'>Daftar Penjualan</span></h1>
-        </div>
-        <div className="px-5 mt-5">
-          <div className="overflow-x-auto my-6 bg-white shadow-lg rounded-lg">
-            <p className="p-10 text-center text-gray-500">Memuat data transaksi...</p>
-          </div>
-        </div>
-      </div>
-    );
+  if (!isLoaded) {
+    return <div className="p-10 text-center">Memuat...</div>;
   }
   
-  // Jika sudah selesai loading (isLoaded true) dan tidak ada user, tampilkan pesan sesuai
-  if (isLoaded && !user) {
-    return (
-      <div className='bg-[#DEDFEC] min-h-screen pb-10'>
-        <div className='p-5'>
-          <h1 className='font-semibold'>Pemasukan | <span className='text-blue-800'>Daftar Penjualan</span></h1>
-        </div>
-        <div className="px-5 mt-5">
-          <div className="text-center py-10 bg-white shadow-lg rounded-lg">
-            <p className="text-gray-500">Silakan login untuk melihat data pemasukan.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className='bg-[#DEDFEC] min-h-screen pb-10'>
       <div className='p-5'>
@@ -152,65 +145,117 @@ function Pemasukan() {
       <div className="px-5 mt-5">
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-green-600 px-5 py-2.5 rounded-md text-white hover:bg-green-700 transition-colors duration-250 shadow hover:shadow-md text-sm font-medium hover:cursor-pointer"
+          className="bg-green-600 px-5 py-2.5 rounded-md text-white hover:bg-green-700 transition-colors duration-250 shadow hover:shadow-md text-sm font-medium"
         >
         Tambah Transaksi
         </button>
 
-        <div className="overflow-x-auto my-6 bg-white shadow-lg rounded-lg">
-          {/* Tidak perlu isLoadingTransactions di sini karena sudah ditangani di atas */}
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nama Pembeli</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tanggal</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Metode Pembayaran</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Total Pemasukan</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">Catatan</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {transactions.length > 0 ? transactions.map(tx => (
-                <tr key={tx.id} className="hover:bg-gray-50 transition-colors duration-150">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{tx.customer_name || tx.name || '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">{formatDate(tx.date)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell">{tx.payment_method || '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-right hidden lg:table-cell">{formatCurrency(tx.total_amount)}</td>
-                  <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate hidden xl:table-cell" title={tx.notes}>{tx.notes || '-'}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
-                    <button
-                      onClick={() => handleShowDetail(tx.id)}
-                      disabled={isLoadingDetail && selectedTransaction?.id === tx.id} // Disable hanya jika detail untuk tx ini sedang loading
-                      className="bg-sky-500 text-white py-1.5 px-3 rounded-md hover:bg-sky-600 transition-colors duration-200 text-xs font-medium disabled:opacity-50 hover:cursor-pointer"
-                    >
-                      {(isLoadingDetail && selectedTransaction?.id === tx.id) ? 'Memuat...' : 'Detail'}
-                    </button>
-                  </td>
-                </tr>
-              )) : (
+        {/* Filter Section */}
+        <div className="my-6 p-4 bg-white shadow-lg rounded-lg flex flex-wrap items-end gap-4">
+            <div className="flex-grow min-w-[150px]">
+                <label htmlFor="filterType" className="block text-sm font-medium text-gray-700 mb-1">Filter Berdasarkan</label>
+                <select 
+                    id="filterType"
+                    name="filterType"
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                    <option value="all">Semua</option>
+                    <option value="date">Tanggal</option>
+                    <option value="month">Bulan & Tahun</option>
+                    <option value="year">Tahun</option>
+                </select>
+            </div>
+
+            {filterType === 'date' && (
+                <div className="flex-grow min-w-[150px]">
+                    <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Pilih Tanggal</label>
+                    <input type="date" name="date" value={filterValue.date} onChange={handleFilterChange} className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"/>
+                </div>
+            )}
+
+            {filterType === 'month' && (
+                <>
+                    <div className="flex-grow min-w-[150px]">
+                        <label htmlFor="month" className="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+                        <select name="month" value={filterValue.month} onChange={handleFilterChange} className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm">
+                            {Array.from({length: 12}, (_, i) => <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('id-ID', { month: 'long' })}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex-grow min-w-[120px]">
+                        <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">Tahun</label>
+                        <input type="number" name="year" placeholder="e.g. 2024" value={filterValue.year} onChange={handleFilterChange} className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"/>
+                    </div>
+                </>
+            )}
+
+            {filterType === 'year' && (
+                <div className="flex-grow min-w-[120px]">
+                    <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">Pilih Tahun</label>
+                    <input type="number" name="year" placeholder="e.g. 2024" value={filterValue.year} onChange={handleFilterChange} className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"/>
+                </div>
+            )}
+             <button
+                onClick={handleApplyFilter}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-700 text-sm font-medium flex items-center gap-2"
+                disabled={isLoadingTransactions}
+            >
+                <Search size={16} />
+                {isLoadingTransactions ? 'Mencari...' : 'Cari'}
+            </button>
+        </div>
+
+        <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+          {isLoadingTransactions ? (
+            <p className="p-10 text-center text-gray-500">Memuat data transaksi...</p>
+          ) : (
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-gray-500"> {/* Sesuaikan colSpan */}
-                    Tidak ada data transaksi pemasukan.
-                  </td>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Nama Pembeli</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden md:table-cell">Tanggal</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden lg:table-cell">Metode Pembayaran</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Pemasukan</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider hidden xl:table-cell">Catatan</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Aksi</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {transactions.length > 0 ? transactions.map(tx => (
+                  <tr key={tx.id} className="hover:bg-gray-50 transition-colors duration-150">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800">{tx.customer_name || tx.name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden md:table-cell">{formatDate(tx.date)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 hidden lg:table-cell">{tx.payment_method || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-800 text-right">{formatCurrency(tx.total_amount)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate hidden xl:table-cell" title={tx.notes}>{tx.notes || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                      <button
+                        onClick={() => handleShowDetail(tx.id)}
+                        disabled={isLoadingDetail && selectedTransaction?.id === tx.id}
+                        className="bg-sky-500 text-white py-1.5 px-3 rounded-md hover:bg-sky-600 transition-colors duration-200 text-xs font-medium disabled:opacity-50"
+                      >
+                        {(isLoadingDetail && selectedTransaction?.id === tx.id) ? 'Memuat...' : 'Detail'}
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={6} className="text-center py-10 text-gray-500">
+                      Tidak ada data transaksi pemasukan yang cocok dengan filter.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {showAddModal && <AddPemasukan onClose={handleAddModalClose} />}
-
       {showDetailModal && selectedTransaction && (
-      <PemasukanDetailModal
-        transaction={selectedTransaction}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedTransaction(null); // Reset selectedTransaction saat modal ditutup
-        }}
-      />
-    )}
+        <PemasukanDetailModal transaction={selectedTransaction} onClose={() => setShowDetailModal(false)} />
+      )}
     </div>
   );
 }
