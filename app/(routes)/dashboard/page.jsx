@@ -4,6 +4,7 @@ import React from 'react'
 import DashboardCard from './_components/dashboardCard';
 import DashboardBarChart from './_components/dashboardBarChart';
 import DashboardRecent from './_components/dashboardRecent';
+import DashboardDummyDataButton from './_components/dashboardDummyData';
 
 function Dashboard() {
   const {user}=useUser();
@@ -24,6 +25,7 @@ function Dashboard() {
         <DashboardCard />
         <DashboardBarChart/>
         <DashboardRecent/>
+        <DashboardDummyDataButton/>
     </div>
   )
 }

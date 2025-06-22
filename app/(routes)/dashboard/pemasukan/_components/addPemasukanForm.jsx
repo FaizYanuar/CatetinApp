@@ -219,7 +219,6 @@ export default function PemasukanForm({ onClose }) {
                 className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm hover:cursor-pointer"
               >
                 <option value="cash">Cash</option>
-                <option value="credit">Credit</option>
                 <option value="bank_transfer">Bank Transfer</option>
                 <option value="qris">QRIS</option>
                 <option value="other">Lainnya</option>
