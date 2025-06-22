@@ -29,7 +29,6 @@ export default function Stok() {
     
     setLoading(true);
     setError(null);
-    console.log(`Stok Component: Memulai pengambilan data stok untuk user ID: ${user ? user.id : 'Guest'}...`);
     try {
       const res = await fetch("/api/stock");
       if (!res.ok) {

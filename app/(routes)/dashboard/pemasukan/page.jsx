@@ -44,7 +44,6 @@ function Pemasukan() {
     }
 
     const queryString = params.toString();
-    console.log(`Pemasukan: Fetching data from /api/pemasukan?${queryString}`);
 
     try {
       const res = await fetch(`/api/pemasukan?${queryString}`);
