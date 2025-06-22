@@ -44,7 +44,6 @@ function DashboardRecent() {
         async function fetchRecentTransactions() {
           setLoading(true);
           setError(null);
-          console.log(`DashboardRecent: Memulai pengambilan transaksi terbaru untuk userId: ${user.id}...`);
           try {
             const response = await fetch('/api/recent-transaction?limit=10');
             
