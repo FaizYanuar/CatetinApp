@@ -1,58 +1,62 @@
-// File: app/api/dashboards/route.js
+// File: app/api/dashboard/route.js
 
 import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { db } from '@/utils/dbConfig'; // Ensure this path is correct
-import { transactions } from '@/utils/schema'; // Ensure this path is correct
-import { and, eq, sum } from 'drizzle-orm';
+import { db } from '@/utils/dbConfig';
+import { transactions } from '@/utils/schema';
+import { and, eq, sql } from 'drizzle-orm';
 
 export async function GET(req) {
   try {
     const { userId } = getAuth(req);
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      // Mengembalikan nilai nol jika tidak ada pengguna yang login
+      return NextResponse.json({ totalIncome: 0, totalExpenses: 0, netIncome: 0 }, { status: 200 });
     }
 
-    // Calculate Total Income (Pemasukan)
-    // Fetches all transactions of type 'income' for the user and sums their total_amount.
-    const incomeResult = await db
+    const { searchParams } = new URL(req.url);
+    const filterType = searchParams.get('type') || 'all';
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
+
+    console.log(`API GET /dashboard-stats for userId: ${userId} with filterType: ${filterType}`);
+
+    // Kondisi dasar untuk query, selalu filter berdasarkan userId
+    const conditions = [eq(transactions.user_id, userId)];
+
+    // Menambahkan kondisi filter tanggal secara dinamis
+    if (filterType === 'year' && year) {
+      conditions.push(sql`EXTRACT(YEAR FROM ${transactions.date}) = ${parseInt(year, 10)}`);
+    } else if (filterType === 'month' && year && month) {
+      conditions.push(sql`EXTRACT(YEAR FROM ${transactions.date}) = ${parseInt(year, 10)}`);
+      conditions.push(sql`EXTRACT(MONTH FROM ${transactions.date}) = ${parseInt(month, 10)}`);
+    }
+    // Jika 'all', tidak ada filter tanggal tambahan
+
+    // Menggunakan satu query efisien dengan agregasi kondisional
+    const [stats] = await db
       .select({
-        total: sum(transactions.total_amount).mapWith(Number) // .mapWith(Number) ensures the sum is treated as a number
+        totalIncome: sql`COALESCE(SUM(CASE WHEN ${transactions.type} = 'sale' THEN ${transactions.total_amount} ELSE 0 END), 0)`.mapWith(Number),
+        totalExpenses: sql`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.total_amount} ELSE 0 END), 0)`.mapWith(Number),
       })
       .from(transactions)
-      .where(and(
-        eq(transactions.user_id, userId),
-        eq(transactions.type, 'sale') // Assumes 'income' is the type for Pemasukan
-      ));
+      .where(and(...conditions));
 
-    const totalIncome = incomeResult[0]?.total || 0; // Default to 0 if no income transactions
-
-    // Calculate Total Expenses (Pengeluaran)
-    // Fetches all transactions of type 'expense' for the user and sums their total_amount.
-    const expenseResult = await db
-      .select({
-        total: sum(transactions.total_amount).mapWith(Number)
-      })
-      .from(transactions)
-      .where(and(
-        eq(transactions.user_id, userId),
-        eq(transactions.type, 'expense') // Assumes 'expense' is the type for Pengeluaran
-      ));
-
-    const totalExpenses = expenseResult[0]?.total || 0; // Default to 0 if no expense transactions
-
-    // Calculate Net Income (Total Pendapatan)
+    // Pastikan stats tidak null sebelum diakses
+    const totalIncome = stats?.totalIncome || 0;
+    const totalExpenses = stats?.totalExpenses || 0;
     const netIncome = totalIncome - totalExpenses;
 
-    return NextResponse.json({
-      totalIncome,
-      totalExpenses,
-      netIncome
-    }, { status: 200 });
+    const finalStats = {
+        totalIncome: totalIncome,
+        totalExpenses: totalExpenses,
+        netIncome: netIncome
+    };
 
-  } catch (error) {
-    console.error("API GET Dashboard Stats Error:", error);
-    // Provides a generic error message to the client and logs detailed error on the server.
-    return NextResponse.json({ error: "Internal Server Error fetching dashboard stats.", details: error.message }, { status: 500 });
+    return NextResponse.json(finalStats, { status: 200 });
+
+  } catch (err) {
+    console.error("API GET Dashboard Stats Error:", err);
+    return NextResponse.json({ error: "Internal Server Error fetching dashboard stats", details: err.message }, { status: 500 });
   }
 }
