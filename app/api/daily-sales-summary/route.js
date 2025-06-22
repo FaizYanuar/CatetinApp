@@ -2,9 +2,9 @@
 
 import { NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { db } from '@/utils/dbConfig'; // Pastikan path ini benar
-import { transactions } from '@/utils/schema'; // Pastikan path ini benar
-import { and, eq, desc, sql } from 'drizzle-orm';
+import { db } from '@/utils/dbConfig';
+import { transactions } from '@/utils/schema';
+import { and, eq, desc, sql, or } from 'drizzle-orm';
 
 export async function GET(req) {
   try {
@@ -13,68 +13,76 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Ambil parameter kueri untuk jumlah hari (opsional, default 30 hari terakhir)
-    const url = new URL(req.url);
-    const daysParam = url.searchParams.get("days");
-    const numberOfDays = parseInt(daysParam, 10) || 30; // Default 30 hari
+    const { searchParams } = new URL(req.url);
+    const filterType = searchParams.get("filterType") || 'last10days';
+    
+    // Kondisi dasar untuk query: milik user ini DAN tipenya 'sale' ATAU 'expense'
+    const conditions = [
+      eq(transactions.user_id, userId),
+      or(
+        eq(transactions.type, 'sale'), // DIUBAH: dari 'income' menjadi 'sale'
+        eq(transactions.type, 'expense')
+      )
+    ];
 
-    // Hitung tanggal mulai
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - (numberOfDays -1)); // -1 karena kita mau inklusif numberOfDays
+    if (filterType === 'monthYear') {
+      const month = searchParams.get("month");
+      const year = searchParams.get("year");
 
-    // Format tanggal ke YYYY-MM-DD untuk kueri SQL
-    const startDateString = startDate.toISOString().split('T')[0];
-    const endDateString = endDate.toISOString().split('T')[0];
+      if (!month || !year) {
+        return NextResponse.json({ error: 'Month and year are required for this filter type' }, { status: 400 });
+      }
 
-    console.log(`API daily-sales-summary: Mengambil data untuk userId: ${userId} dari ${startDateString} hingga ${endDateString}`);
+      conditions.push(sql`EXTRACT(YEAR FROM ${transactions.date}) = ${parseInt(year, 10)}`);
+      conditions.push(sql`EXTRACT(MONTH FROM ${transactions.date}) = ${parseInt(month, 10)}`);
+    
+    } else { // Default ke 'last10days'
+      const today = new Date();
+      const tenDaysAgo = new Date();
+      tenDaysAgo.setDate(today.getDate() - 9);
 
-    // Mengambil transaksi 'income' dalam rentang tanggal yang ditentukan
-    const salesTransactions = await db
+      const startDateString = tenDaysAgo.toISOString().split('T')[0];
+      const endDateString = today.toISOString().split('T')[0];
+
+      conditions.push(sql`${transactions.date} >= ${startDateString}`);
+      conditions.push(sql`${transactions.date} <= ${endDateString}`);
+    }
+
+    const allTransactions = await db
       .select({
-        date: transactions.date, // Kolom tanggal
-        amount: transactions.total_amount, // Kolom jumlah
+        date: transactions.date,
+        type: transactions.type,
+        amount: transactions.total_amount,
       })
       .from(transactions)
-      .where(and(
-        eq(transactions.user_id, userId),
-        eq(transactions.type, 'sale'), // Hanya transaksi pemasukan/penjualan
-        sql`${transactions.date} >= ${startDateString}`, // Kondisi rentang tanggal awal
-        sql`${transactions.date} <= ${endDateString}`  // Kondisi rentang tanggal akhir
-      ))
-      .orderBy(desc(transactions.date)); // Urutkan berdasarkan tanggal
+      .where(and(...conditions))
+      .orderBy(desc(transactions.date));
 
-    console.log(`API daily-sales-summary: ${salesTransactions.length} transaksi ditemukan sebelum agregasi.`);
-
-    // Agregasi data penjualan per hari di sisi server (JavaScript)
-    const dailySummary = salesTransactions.reduce((acc, transaction) => {
-      // Tanggal dari DB sudah dalam format YYYY-MM-DD string atau Date object yang bisa di-string-kan
+    // Agregasi data pemasukan dan pengeluaran per hari
+    const dailySummary = allTransactions.reduce((acc, transaction) => {
       const dateKey = typeof transaction.date === 'string' ? transaction.date : transaction.date.toISOString().split('T')[0];
       
-      // Inisialisasi jika tanggal belum ada di accumulator
       if (!acc[dateKey]) {
-        acc[dateKey] = {
-          date: dateKey, // Simpan tanggal sebagai string YYYY-MM-DD
-          totalSales: 0,
-        };
+        acc[dateKey] = { date: dateKey, totalIncome: 0, totalExpenses: 0 };
       }
-      // Tambahkan jumlah transaksi ke total penjualan hari itu
-      acc[dateKey].totalSales += Number(transaction.amount);
+      
+      // DIUBAH: dari 'income' menjadi 'sale'
+      if (transaction.type === 'sale') {
+        acc[dateKey].totalIncome += Number(transaction.amount);
+      } else if (transaction.type === 'expense') {
+        acc[dateKey].totalExpenses += Number(transaction.amount);
+      }
+
       return acc;
     }, {});
 
-    // Ubah objek hasil agregasi menjadi array dan urutkan berdasarkan tanggal (terbaru dulu)
-    const chartData = Object.values(dailySummary).sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    // Ambil 7 hari terakhir dengan penjualan (atau kurang jika tidak ada cukup data)
-    const finalChartData = chartData.slice(0, 10).reverse(); // Ambil 10 data terbaru, lalu reverse agar tanggal terlama di kiri
+    // Ubah objek hasil agregasi menjadi array dan urutkan berdasarkan tanggal
+    const chartData = Object.values(dailySummary).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    console.log("API daily-sales-summary: Data yang dikirim ke chart:", finalChartData);
-
-    return NextResponse.json(finalChartData, { status: 200 });
+    return NextResponse.json(chartData, { status: 200 });
 
   } catch (error) {
     console.error("API GET Daily Sales Summary Error:", error);
-    return NextResponse.json({ error: "Internal Server Error fetching daily sales summary.", details: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
   }
 }

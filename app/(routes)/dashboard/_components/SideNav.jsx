@@ -36,7 +36,7 @@ export default function SideNav({ onCloseMobileNav, isMobileView }) {
           </div>
         )}
         <div className={`${isMobileView ? 'pt-0' : 'pt-10 pb-10'}`}> 
-          <h1 className="text-2xl font-bold text-white text-center">Nama Aplikasi</h1>
+          <h1 className="text-2xl font-bold text-white text-center">CatetinApp</h1>
         </div>
       </div>
 
